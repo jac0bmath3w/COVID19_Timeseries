@@ -40,7 +40,7 @@ combined = combined.set_index('Date')
 # fig.show()
 
 # Using Matplotlib
-def make_time_series_plot(country = 'Afghanistan'):
+def make_time_series_plot(country = 'Afghanistan', logscale = False):
 # Check if there are multiple regions in the country
     plot_data = combined[combined['Country/Region'].str.lower() == country.lower()]
     if (plot_data['Province/State'].nunique() > 1):
@@ -51,7 +51,13 @@ def make_time_series_plot(country = 'Afghanistan'):
         confirmed = plot_data.confirmed
         deaths = plot_data.deaths
         recovered = plot_data.recovered
+        
+    if logscale:
+        confirmed = np.log(confirmed+1)
+        deaths = np.log(deaths+1)
+        recovered = np.log(recovered+1)
 
+    plt.figure(figsize=(20,10))
     plt.plot(confirmed, color = 'red', label = 'Number of confirmed cases')
     plt.plot(deaths, color = 'blue', label = 'Number of deaths')
     plt.plot(recovered, color = 'green', label = 'Number recovered')
@@ -61,6 +67,7 @@ def make_time_series_plot(country = 'Afghanistan'):
     plt.ylabel('Number')
     plt.legend()
     plt.show()
+
 
 
 
