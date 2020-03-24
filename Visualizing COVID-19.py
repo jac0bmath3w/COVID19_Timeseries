@@ -9,6 +9,7 @@ COVID-19 Time Series
 import pandas as pd
 import matplotlib.pyplot as plt
 from functools import reduce
+from tqdm import tqdm
 
 
 confirmed = pd.read_csv('3-22-20-time_series-ncov-Confirmed.csv')
@@ -39,6 +40,89 @@ combined = combined.set_index('Date')
 # fig = px.line(combined, x='Date', y='confirmed')
 # fig.show()
 
+#Get cumulative data
+def get_cumulative_data(data):
+    newdata = pd.DataFrame(columns = combined.columns)
+    newdata = pd.concat([newdata,pd.DataFrame(columns=['cum_confirmed', 'cum_deaths', 'cum_recovered'])])
+    print('Calculating Cumulative Values')
+    for country in tqdm(combined['Country/Region'].unique()):
+        country_data = combined[combined['Country/Region'] == country]
+        if (country_data['Province/State'].nunique() > 1):
+            for province in country_data['Province/State'].unique():
+                province_data = country_data[country_data['Province/State'] == province]
+                province_data['cum_confirmed'] = province_data['confirmed'].sort_index().cumsum()
+                province_data['cum_deaths'] = province_data['deaths'].sort_index().cumsum()
+                province_data['cum_recovered'] = province_data['recovered'].sort_index().cumsum()
+                newdata = newdata.append(province_data)
+        else:
+            country_data['cum_confirmed'] = country_data['confirmed'].sort_index().cumsum()
+            country_data['cum_deaths'] = country_data['deaths'].sort_index().cumsum()
+            country_data['cum_recovered'] = country_data['recovered'].sort_index().cumsum()
+            newdata = newdata.append(country_data)
+    return(newdata)
+
+# Using Matplotlib
+def make_time_series_plot(country = 'Afghanistan', province = 'nan', logscale = False, cumulative = False):
+# Check if there are multiple regions in the country
+    if cumulative == False:
+        plot_data = combined[combined['Country/Region'].str.lower() == country.lower()]
+        if (plot_data['Province/State'].nunique() > 1):
+            confirmed = plot_data.groupby('Date').confirmed.sum()
+            deaths = plot_data.groupby('Date').deaths.sum()
+            recovered = plot_data.groupby('Date').recovered.sum()
+            active = confirmed
+        else:
+            confirmed = plot_data.confirmed
+            deaths = plot_data.deaths
+            recovered = plot_data.recovered
+            active = confirmed
+
+    else:
+        newdata = get_cumulative_data(combined)
+        plot_data = newdata[newdata['Country/Region'].str.lower() == country.lower()]
+        if (plot_data['Province/State'].nunique() > 1):
+            plot_data.index.name = 'Date'
+            confirmed = plot_data.groupby('Date').cum_confirmed.sum()
+            deaths = plot_data.groupby('Date').cum_deaths.sum()
+            recovered = plot_data.groupby('Date').cum_recovered.sum()
+            active = confirmed - recovered - deaths
+        else:
+            confirmed = plot_data.cum_confirmed
+            deaths = plot_data.cum_deaths
+            recovered = plot_data.cum_recovered
+            active = confirmed - recovered - deaths
+    
+    if logscale:
+        confirmed = np.log(confirmed+1)
+        deaths = np.log(deaths+1)
+        recovered = np.log(recovered+1)
+        active = np.log(active+1)
+
+    yaxis = "Daily Number of Cases"
+    if cumulative:
+        if logscale:
+            yaxis = "Cumulative Number of Cases (log scale)"
+        else:    
+            yaxis = "Cumulative Number of Cases"
+    else:
+        if logscale:
+            yaxis = "Daily Number of Cases (log scale)"
+        else:    
+            yaxis = "Daily Number of Cases"
+
+    plt.figure(figsize=(20,10))
+    plt.plot(active, color = 'red', label = 'Number of Active cases')
+    plt.plot(deaths, color = 'blue', label = 'Number of deaths')
+    plt.plot(recovered, color = 'green', label = 'Number recovered')
+    plt.title('COVID-19 Cases in '+str(country))
+    plt.xlabel('Time')
+    plt.xticks(rotation=90)
+    plt.ylabel(yaxis)
+    plt.legend()
+    plt.show()
+
+"""
+Some old code
 # Using Matplotlib
 def make_time_series_plot(country = 'Afghanistan', logscale = False):
 # Check if there are multiple regions in the country
@@ -67,7 +151,7 @@ def make_time_series_plot(country = 'Afghanistan', logscale = False):
     plt.ylabel('Number')
     plt.legend()
     plt.show()
-
+"""
 
 
 
